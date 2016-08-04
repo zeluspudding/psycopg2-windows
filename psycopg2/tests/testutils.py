@@ -25,9 +25,10 @@
 # Use unittest2 if available. Otherwise mock a skip facility with warnings.
 
 import os
+import platform
 import sys
 from functools import wraps
-from .testconfig import dsn
+from .testconfig import dsn, repl_dsn
 
 try:
     import unittest2
@@ -64,7 +65,8 @@ else:
 
     unittest.TestCase.skipTest = skipTest
 
-# Silence warnings caused by the stubborness of the Python unittest maintainers
+# Silence warnings caused by the stubbornness of the Python unittest
+# maintainers
 # http://bugs.python.org/issue9424
 if not hasattr(unittest.TestCase, 'assert_') \
 or unittest.TestCase.assertTrue is not unittest.TestCase.assertTrue:
@@ -98,12 +100,36 @@ class ConnectingTestCase(unittest.TestCase):
             self._conns
         except AttributeError as e:
             raise AttributeError(
-                "%s (did you remember calling ConnectingTestCase.setUp()?)"
+                "%s (did you forget to call ConnectingTestCase.setUp()?)"
                 % e)
 
+        if 'dsn' in kwargs:
+            conninfo = kwargs.pop('dsn')
+        else:
+            conninfo = dsn
         import psycopg2
-        conn = psycopg2.connect(dsn, **kwargs)
+        conn = psycopg2.connect(conninfo, **kwargs)
         self._conns.append(conn)
+        return conn
+
+    def repl_connect(self, **kwargs):
+        """Return a connection set up for replication
+
+        The connection is on "PSYCOPG2_TEST_REPL_DSN" unless overridden by
+        a *dsn* kwarg.
+
+        Should raise a skip test if not available, but guard for None on
+        old Python versions.
+        """
+        if 'dsn' not in kwargs:
+            kwargs['dsn'] = repl_dsn
+        import psycopg2
+        try:
+            conn = self.connect(**kwargs)
+        except psycopg2.OperationalError as e:
+            return self.skipTest("replication db not configured: %s" % e)
+
+        conn.autocommit = True
         return conn
 
     def _get_conn(self):
@@ -302,6 +328,17 @@ def skip_if_no_getrefcount(f):
             return f(self)
     return skip_if_no_getrefcount_
 
+def skip_if_windows(f):
+    """Skip a test if run on windows"""
+    @wraps(f)
+    def skip_if_windows_(self):
+        if platform.system() == 'Windows':
+            return self.skipTest("Not supported on Windows")
+        else:
+            return f(self)
+    return skip_if_windows_
+
+
 def script_to_py3(script):
     """Convert a script to Python3 syntax if required."""
     if sys.version_info[0] < 3:
@@ -338,4 +375,3 @@ class py3_raises_typeerror(object):
         if sys.version_info[0] >= 3:
             assert type is TypeError
             return True
-        

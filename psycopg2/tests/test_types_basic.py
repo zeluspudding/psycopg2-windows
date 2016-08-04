@@ -95,11 +95,11 @@ class TypesBasicTests(ConnectingTestCase):
         except ValueError:
             return self.skipTest("inf not available on this platform")
         s = self.execute("SELECT %s AS foo", (float("inf"),))
-        self.assertTrue(str(s) == "inf", "wrong float quoting: " + str(s))      
+        self.assertTrue(str(s) == "inf", "wrong float quoting: " + str(s))
         self.assertTrue(type(s) == float, "wrong float conversion: " + repr(s))
 
         s = self.execute("SELECT %s AS foo", (float("-inf"),))
-        self.assertTrue(str(s) == "-inf", "wrong float quoting: " + str(s))      
+        self.assertTrue(str(s) == "-inf", "wrong float quoting: " + str(s))
 
     def testBinary(self):
         if sys.version_info[0] < 3:
@@ -191,6 +191,41 @@ class TypesBasicTests(ConnectingTestCase):
         for s in ss:
             self.assertRaises(psycopg2.DataError,
                 psycopg2.extensions.STRINGARRAY, b(s), curs)
+
+    @testutils.skip_before_postgres(8, 2)
+    def testArrayOfNulls(self):
+        curs = self.conn.cursor()
+        curs.execute("""
+            create table na (
+              texta text[],
+              inta int[],
+              boola boolean[],
+
+              textaa text[][],
+              intaa int[][],
+              boolaa boolean[][]
+            )""")
+
+        curs.execute("insert into na (texta) values (%s)", ([None],))
+        curs.execute("insert into na (texta) values (%s)", (['a', None],))
+        curs.execute("insert into na (texta) values (%s)", ([None, None],))
+        curs.execute("insert into na (inta) values (%s)",  ([None],))
+        curs.execute("insert into na (inta) values (%s)",  ([42, None],))
+        curs.execute("insert into na (inta) values (%s)",  ([None, None],))
+        curs.execute("insert into na (boola) values (%s)", ([None],))
+        curs.execute("insert into na (boola) values (%s)", ([True, None],))
+        curs.execute("insert into na (boola) values (%s)", ([None, None],))
+
+        # TODO: array of array of nulls are not supported yet
+        # curs.execute("insert into na (textaa) values (%s)", ([[None]],))
+        curs.execute("insert into na (textaa) values (%s)", ([['a', None]],))
+        # curs.execute("insert into na (textaa) values (%s)", ([[None, None]],))
+        # curs.execute("insert into na (intaa) values (%s)",  ([[None]],))
+        curs.execute("insert into na (intaa) values (%s)",  ([[42, None]],))
+        # curs.execute("insert into na (intaa) values (%s)",  ([[None, None]],))
+        # curs.execute("insert into na (boolaa) values (%s)", ([[None]],))
+        curs.execute("insert into na (boolaa) values (%s)", ([[True, None]],))
+        # curs.execute("insert into na (boolaa) values (%s)", ([[None, None]],))
 
     @testutils.skip_from_python(3)
     def testTypeRoundtripBuffer(self):
@@ -329,8 +364,8 @@ class AdaptSubclassTest(unittest.TestCase):
         try:
             self.assertEqual(b'b', adapt(C()).getquoted())
         finally:
-           del psycopg2.extensions.adapters[A, psycopg2.extensions.ISQLQuote]
-           del psycopg2.extensions.adapters[B, psycopg2.extensions.ISQLQuote]
+            del psycopg2.extensions.adapters[A, psycopg2.extensions.ISQLQuote]
+            del psycopg2.extensions.adapters[B, psycopg2.extensions.ISQLQuote]
 
     @testutils.skip_from_python(3)
     def test_no_mro_no_joy(self):
@@ -343,8 +378,7 @@ class AdaptSubclassTest(unittest.TestCase):
         try:
             self.assertRaises(psycopg2.ProgrammingError, adapt, B())
         finally:
-           del psycopg2.extensions.adapters[A, psycopg2.extensions.ISQLQuote]
-
+            del psycopg2.extensions.adapters[A, psycopg2.extensions.ISQLQuote]
 
     @testutils.skip_before_python(3)
     def test_adapt_subtype_3(self):
@@ -357,7 +391,7 @@ class AdaptSubclassTest(unittest.TestCase):
         try:
             self.assertEqual(b"a", adapt(B()).getquoted())
         finally:
-           del psycopg2.extensions.adapters[A, psycopg2.extensions.ISQLQuote]
+            del psycopg2.extensions.adapters[A, psycopg2.extensions.ISQLQuote]
 
 
 class ByteaParserTest(unittest.TestCase):
@@ -445,6 +479,7 @@ class ByteaParserTest(unittest.TestCase):
 
         self.assertEqual(rv, tgt)
 
+
 def skip_if_cant_cast(f):
     @wraps(f)
     def skip_if_cant_cast_(self, *args, **kwargs):
@@ -464,4 +499,3 @@ def test_suite():
 
 if __name__ == "__main__":
     unittest.main()
-

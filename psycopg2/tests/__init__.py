@@ -34,6 +34,7 @@ from . import test_connection
 from . import test_copy
 from . import test_cursor
 from . import test_dates
+from . import test_errcodes
 from . import test_extras_dictcursor
 from . import test_green
 from . import test_lobject
@@ -71,6 +72,7 @@ def test_suite():
     suite.addTest(test_copy.test_suite())
     suite.addTest(test_cursor.test_suite())
     suite.addTest(test_dates.test_suite())
+    suite.addTest(test_errcodes.test_suite())
     suite.addTest(test_extras_dictcursor.test_suite())
     suite.addTest(test_green.test_suite())
     suite.addTest(test_lobject.test_suite())

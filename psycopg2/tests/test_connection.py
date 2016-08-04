@@ -26,6 +26,7 @@ import os
 import time
 import threading
 from operator import attrgetter
+from io import StringIO
 
 import psycopg2
 import psycopg2.errorcodes
@@ -34,6 +35,7 @@ import psycopg2.extensions
 from .testutils import unittest, decorate_all_tests, skip_if_no_superuser
 from .testutils import skip_before_postgres, skip_after_postgres
 from .testutils import ConnectingTestCase, skip_if_tpc_disabled
+from .testutils import skip_if_windows
 from .testconfig import dsn, dbname
 
 
@@ -64,20 +66,13 @@ class ConnectionTests(ConnectingTestCase):
 
     @skip_before_postgres(8, 4)
     @skip_if_no_superuser
+    @skip_if_windows
     def test_cleanup_on_badconn_close(self):
         # ticket #148
         conn = self.conn
         cur = conn.cursor()
-        try:
-            cur.execute("select pg_terminate_backend(pg_backend_pid())")
-        except psycopg2.OperationalError as e:
-            if e.pgcode != psycopg2.errorcodes.ADMIN_SHUTDOWN:
-                raise
-        except psycopg2.DatabaseError as e:
-            # curiously when disconnected in green mode we get a DatabaseError
-            # without pgcode.
-            if e.pgcode is not None:
-                raise
+        self.assertRaises(psycopg2.OperationalError,
+            cur.execute, "select pg_terminate_backend(pg_backend_pid())")
 
         self.assertEqual(conn.closed, 2)
         conn.close()
@@ -125,9 +120,6 @@ class ConnectionTests(ConnectingTestCase):
             cur.execute(sql)
 
         self.assertEqual(50, len(conn.notices))
-        self.assertTrue('table50' in conn.notices[0], conn.notices[0])
-        self.assertTrue('table51' in conn.notices[1], conn.notices[1])
-        self.assertTrue('table98' in conn.notices[-2], conn.notices[-2])
         self.assertTrue('table99' in conn.notices[-1], conn.notices[-1])
 
     def test_server_version(self):
@@ -1066,6 +1058,17 @@ class AutocommitTests(ConnectingTestCase):
         self.assertEqual(cur.fetchone()[0], 'serializable')
         cur.execute("SHOW default_transaction_read_only;")
         self.assertEqual(cur.fetchone()[0], 'on')
+
+
+class ReplicationTest(ConnectingTestCase):
+    @skip_before_postgres(9, 0)
+    def test_replication_not_supported(self):
+        conn = self.repl_connect()
+        if conn is None: return
+        cur = conn.cursor()
+        f = StringIO()
+        self.assertRaises(psycopg2.NotSupportedError,
+            cur.copy_expert, "START_REPLICATION 0/0", f)
 
 
 def test_suite():

@@ -1,5 +1,10 @@
 from distutils.core import setup
 
+from distutils.command.install import INSTALL_SCHEMES
+
+for scheme in INSTALL_SCHEMES.values():
+    scheme['data'] = scheme['purelib']
+
 setup(
     name='psycopg2',
     version='2.6.2',
@@ -10,6 +15,7 @@ setup(
     url='http://initd.org/psycopg',
     license='GPL with exceptions or ZPL',
     packages=['psycopg2'],
+    data_files=[('psycopg2', ['psycopg2/_psycopg.cp35-win_amd64.pyd'])],
     long_description=("psycopg2 is a PostgreSQL database adapter for the Python programming "
                       "language.  psycopg2 was written with the aim of being very small and fast, "
                       "and stable as a rock. "

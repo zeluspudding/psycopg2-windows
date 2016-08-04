@@ -9,7 +9,7 @@ setup(
     description='Agnostic and easy to use ajax library for django',
     url='http://initd.org/psycopg',
     license='GPL with exceptions or ZPL',
-    package_data={'dajaxice': ['templates/dajaxice/*']},
+    packages=['psycopg2'],
     long_description=("psycopg2 is a PostgreSQL database adapter for the Python programming "
                       "language.  psycopg2 was written with the aim of being very small and fast, "
                       "and stable as a rock. "

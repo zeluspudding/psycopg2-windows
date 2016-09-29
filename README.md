@@ -93,6 +93,7 @@ The test suite assumes that you have a primary python installation with virtuale
  - **Windows 64 bit:** Python 3.2
  - **Windows 64 bit:** Python 3.3
  - **Windows 64 bit:** Python 3.5
+
 Credits
 -------
  - [Travis Krause](http://codeforemen.com): Pipified stuff....  Wrote these docs too...
